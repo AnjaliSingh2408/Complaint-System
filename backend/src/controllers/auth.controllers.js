@@ -33,7 +33,47 @@ const registerCitizen = asyncHandler(async(req,res,next)=>{
     )
 })
 
+//login user same for all roles
+const loginUser = asyncHandler(async(req,res,next)=>{
+    const {email,username, password } = req.body;
+    if(!username || !email){
+        throw new ApiError(400,"Username and email are required!!")
+    }
+    const user = await User.findOne({
+        $or: [{username},{email}]
+    })
+    if(!user){
+        throw new ApiError(404,"User not exist!!")
+    }
+    const isPasswordValid = await user.isPasswordCorrect(password)
+    if(!isPasswordValid){
+        throw new ApiError(401,"Invalid credentials!!")
+    }
+    const {accessToken, refreshToken} = await generateTokens(user._id)
+    
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    
+    const options ={
+        httpOnly:true,
+        secure:true
+    }
+
+    return res.status(200)
+    .cookies("accessToken", accessToken, options)
+    .cookies("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user: loggedInUser,accessToken, refreshToken
+            },
+            "User logged in successfully!!"
+        )
+    )
+})
 
 
 
-export {registerCitizen}
+export {registerCitizen,
+        loginUser,
+}
