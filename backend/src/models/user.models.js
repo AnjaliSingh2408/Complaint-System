@@ -25,9 +25,18 @@ const userSchema= new Schema({
         type:String,
         required:[true,"Password is required!!"]
     },
+    role: {
+        type: String,
+        enum: ["citizen", "staff", "admin"],
+        default: "citizen"
+    },
     complaintHistory:{
         type:Schema.Types.ObjectId,
         ref:"Complaint"
+    },
+    isActive:{
+        type:Boolean,
+        default:true
     },
     refreshToken:{
         type:String

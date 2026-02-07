@@ -13,9 +13,12 @@ export const verifyJWT= asyncHandler(async(req,_,next)=>{
 
         const decodedToken =  jwt.verify(token,process.env.ACCES_TOKEN_SECRET)
 
-        const user = User.findById(decodedToken?._id).select("-password -refreshToken")
+        const user = User.findById(decodedToken._id).select("-password -refreshToken")
         if(!user){
             throw new ApiError(401,"Invalid Access Token")
+        }
+        if(!user.isActive){
+            throw new ApiError(403,"Your account has been deactivated, please contact support!!")
         }
         req.user=user;
         next();
