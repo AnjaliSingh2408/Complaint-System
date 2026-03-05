@@ -2,11 +2,15 @@ import mongoose, {Schema} from 'mongoose';
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const complaintSchema = new Schema({
-    complainDescription:{
+    complaintTitle:{
         type:String,
         required:true
     },
-    complainImage:{
+    complaintDescription:{
+        type:String,
+        required:true
+    },
+    complaintImage:{
         type:[String]
     },
     complaintStatus:{
@@ -25,15 +29,20 @@ const complaintSchema = new Schema({
             required:true
         }
     },
-    user:{
+    submittedBy:{
         type:Schema.Types.ObjectId,
         ref:"User",
         required:true
+    },
+    assignedTo:{
+        type:Schema.Types.ObjectId,
+        ref:"User",
+        default:null
     }
 
 });
 
-complaintSchema.index({loctaion:"2dsphere"})
+complaintSchema.index({location:"2dsphere"})
 
 complaintSchema.plugin(mongooseAggregatePaginate);
 export const Complaint = mongoose.model('Complaint', complaintSchema)
