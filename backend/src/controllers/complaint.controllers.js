@@ -104,7 +104,44 @@ const assignComplaintToStaff = asyncHandler(async(req,res,next)=>{
     );  
 });
 
+const getComplaints=asyncHandler(async(req,res,next)=>{
+    //if role === admin → return all complaints
+    //if role === staff → return assigned complaints
+    //if role === citizen → return submitted complaints
+
+    const userId = req.user._id;
+    const role = req.user.role;
+
+    let complaints;
+    
+    if(role==="admin"){
+        complaints = await Complaint.find()
+        .populate("submittedBy","fullName email")
+        .populate("assignedTo","fullName email")
+    }
+    else if(role==="staff"){
+        complaints = await Complaint.find({assignedTo:userId})
+        .populate("submittedBy","fullName email")
+    }
+    else if(role==="citizen"){
+        complaints = await Complaint.find({submittedBy:userId})
+        .populate("assignedTo","fullName email")
+    }
+    else{
+        throw new ApiError(403,"Unauthorized request!!")
+    }
+
+    return res
+    .status(200)
+    .json(
+        200,
+        {complaints},
+        "Complaints fetched successfully!!"
+    )
+});
+
 
 export {registerComplaint,
     assignComplaintToStaff,
+    getComplaints
 }

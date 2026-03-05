@@ -3,7 +3,8 @@ import { upload } from "../middlewares/multer.middlerware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js" 
 
 import {registerComplaint,
-    assignComplaintToStaff
+    assignComplaintToStaff,
+    getComplaints
 } from "../controllers/complaint.controllers.js"
 
 const router = Router()
@@ -23,4 +24,10 @@ router.patch(
     verifyJWT,
     authorize("admin"),
     assignComplaintToStaff
-)
+);
+
+router.get(
+    "/complaints",
+    verifyJWT,
+    getComplaints
+);
