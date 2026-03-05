@@ -19,6 +19,7 @@ const complaintSchema = new Schema({
         default:"Pending"
     },
     location:{
+        address:String,//user generally not types the coordinates, they type the address and we will convert it to coordinates using geocoding
         type:{
             type:String,
             enum:["Point"],
@@ -38,7 +39,18 @@ const complaintSchema = new Schema({
         type:Schema.Types.ObjectId,
         ref:"User",
         default:null
-    }
+    },
+    category: {
+      type: String,
+      enum: ["Infrastructure", "Sanitation", "Water", "Electricity", "Other"],
+      default: "Other"
+    },
+
+    priority: {
+      type: String,
+      enum: ["Low", "Medium", "High"],
+      default: "Low"
+    },
 
 });
 

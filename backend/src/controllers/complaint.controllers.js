@@ -13,4 +13,8 @@ const registerComplaint = asyncHandler(async(req,res,next)=>{
     //we will have to use AI to categorize the type of the complaint
     //also we have to assign priority to the complaint using AI
     //save the complaint in the db
+    const { title, description, location} = req.body;
+
+    
+
 })
