@@ -50,3 +50,5 @@ router.delete(
     authorize("citizen", "admin"),
     deleteComplaint
 );
+
+export default router;
