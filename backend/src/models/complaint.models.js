@@ -15,7 +15,7 @@ const complaintSchema = new Schema({
     },
     complaintStatus:{
         type:String,
-        enum:["Pending","In Progress","Resolved"],
+        enum:["Pending","Assigned","In Progress","Resolved"],
         default:"Pending"
     },
     location:{

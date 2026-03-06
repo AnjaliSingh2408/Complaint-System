@@ -90,7 +90,7 @@ const assignComplaintToStaff = asyncHandler(async(req,res,next)=>{
     }
 
     complaint.assignedTo=staffId;
-    complaint.complaintStatus="In Progress";
+    complaint.complaintStatus="Assigned";
 
     await complaint.save();
     return res
@@ -141,7 +141,151 @@ const getComplaints=asyncHandler(async(req,res,next)=>{
 });
 
 
+const updateComplaintStatus = asyncHandler(async(req,res,next)=>{
+    //jab staff acknowledges an assigned complaint then he/she changes the status to "In Progress"
+    //jab staff resolves the complaint then he/she changes the status to "Resolved"
+    const {complaintId} =req.params;
+    const {status} = req.body;
+    
+    if(!complaintId){
+        throw new ApiError(400,"Complaint id is required!!")
+    }
+    const complaint = await Complaint.findById(complaintId);
+    if(!complaint){
+        throw new ApiError(404,"Complaint not found!!")
+    }
+
+    if(req.user.role !== "Staff"){
+        throw new ApiError(403,"Unauthorized request!!")
+    }
+    if(complaint.assignedTo.toString() !== req.user._id.toString()){
+        throw new ApiError(403, "Complaint not assigned to you!!")
+    }
+
+    const allowedStatus=["In Progress","Resolved"];
+    if(!allowedStatus.includes(status)){
+        throw new ApiError(400,"Invalid status!!")
+    }
+
+    complaint.status=status;
+
+    if(status==="In Progress"){
+        complaint.acknowledgedAt = new Date();
+    }
+    if(status==="Resolved"){
+        complaint.resolvedAt = new Date();
+    }
+    await complaint.save();
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {complaint},
+            "Complaint status updated successfully!!"
+        )
+    );
+});
+
+const editComplaint = asyncHandler(async(req,res,next)=>{
+    const {complaintId} = req.params;
+    const {citizen} = req.user._id;
+
+    if(!complaintId){
+        throw new ApiError(400,"Complaint id is required!!")
+    }
+
+    const complaint = await Complaint.findById(complaintId);
+    if(!complaintId){
+        throw new ApiError(404,"Complaint not found!!")
+    }
+
+    if(req.user.role !== "citizen"){
+        throw new ApiError(403,"Only citizens can edit complaints!!")
+    }
+
+    if(complaint.submittedBy.toString() !== citizen._id.toString()){
+        throw new ApiError(403,"Unauthorized request!!")
+    }
+
+    if(complaint.status !== "pending"){
+        throw new ApiError(400, "This complaint can no longer be edited!!")
+    }
+
+    complaint.title = req.body.title || complaint.title;
+    complaint.description = req.body.description || complaint.description;
+    complaint.address = req.body.address || complaint.address;
+
+    if(req.body.removeImages){
+        complaint.images = complaint.images.filter(
+            img => !req.body.removeImages.includes(img)
+        )
+    }
+
+    if(req.files && req.files>0){
+        const newImageUrls = [];
+        for(const file of req.files){
+            const uploaded = await uploadOnCloudinary(file.path)
+            if(uploaded?.url){
+                newImageUrls.push(uploaded.url)
+            }
+        }
+        complaint.images = complaint.images.concat(newImageUrls).slice(0,5)
+    }
+
+    await complaint.save();
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {complaint},
+            "Complaint updated successfully!!"
+        )
+    );
+});
+
+const deleteComplaint = asyncHandler(async(req,res,next)=>{
+//admin can delete any complaint
+//user can delete a complaint only if it is pending
+    const {complaintId} = req.params;
+    const user =req.user._id;
+
+    const complaint = await Complaint.findById(complaintId);
+    if(!complaint){
+        throw new ApiError(404,"Complaint not found!!")
+    }
+
+    if(req.user.role === "Admin"){
+        await complaint.deleteOne();
+    }else if(req.user.role === "Citizen"){
+        if(complaint.submittedBy.toString() !== req.user._id.toString()){
+            throw new ApiError(403,"You cannot delete a complaint not registered by you!!")
+        }
+        //delete logic
+        await complaint.deleteOne();
+    }else{
+        throw new ApiError(403,"Unauthorized request!!")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {complaint},
+            "Complaint deleted successfully"
+        )
+    );
+});
+
+
 export {registerComplaint,
     assignComplaintToStaff,
-    getComplaints
+    getComplaints,
+    updateComplaintStatus,
+    editComplaint,
+    deleteComplaint
 }

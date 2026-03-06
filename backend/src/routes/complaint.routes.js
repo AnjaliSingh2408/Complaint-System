@@ -4,7 +4,10 @@ import { verifyJWT } from "../middlewares/auth.middleware.js"
 
 import {registerComplaint,
     assignComplaintToStaff,
-    getComplaints
+    getComplaints,
+    updateComplaintStatus,
+    editComplaint,
+    deleteComplaint
 } from "../controllers/complaint.controllers.js"
 
 const router = Router()
@@ -13,7 +16,6 @@ router.use(verifyJWT)
 
 router.post(
   "/complaints",
-  verifyJWT,
   authorize("citizen"),
   upload.array("images", 5),
   registerComplaint
@@ -21,13 +23,30 @@ router.post(
 
 router.patch(
     "/complaints/:complaintId/assign",
-    verifyJWT,
     authorize("admin"),
     assignComplaintToStaff
 );
 
 router.get(
     "/complaints",
-    verifyJWT,
     getComplaints
+);
+
+router.patch(
+    "/complaints/:complaintId/status",
+    authorize("admin", "staff"),
+    updateComplaintStatus
+);
+
+router.patch(
+    "/complaints/:complaintId",
+    authorize("citizen"),
+    upload.array("images", 5),
+    editComplaint
+);
+
+router.delete(
+    "/complaints/:complaintId",
+    authorize("citizen", "admin"),
+    deleteComplaint
 );
