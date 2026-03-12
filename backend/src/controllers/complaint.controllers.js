@@ -20,6 +20,9 @@ const registerComplaint = asyncHandler(async(req,res,next)=>{
     ){
         throw new ApiError(400,"All fields are required!!")//can also check separately for title, dec and location
     }
+
+    const { category, priority } =
+    await classifyComplaint(title, description)
      
     let imageUrls=[]
     if(req.files && req.files>0){
@@ -35,6 +38,8 @@ const registerComplaint = asyncHandler(async(req,res,next)=>{
         title,
         description,
         images:imageUrls,
+        category,
+        priority,
         status:"pending",
         location:{
             address,
