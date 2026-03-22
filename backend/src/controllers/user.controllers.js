@@ -86,17 +86,18 @@ const getMyStats = asyncHandler(async(req,res,next)=>{
 
 });
 
-const needHelp = asyncHandler(async(req,res,next)=>{
-    return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            {chatEndPoint : "/chat/support"},
-            "Redirecting to chat support"
-        )
-    );
-});
+// const needHelp = asyncHandler(async(req,res,next)=>{
+//     //chat would use web sockets
+//     return res
+//     .status(200)
+//     .json(
+//         new ApiResponse(
+//             200,
+//             {chatEndPoint : "/chat/support"},
+//             "Redirecting to chat support"
+//         )
+//     );
+// });
 
 const logoutUser = asyncHandler(async(req,res,next)=>{
     await User.findByIdAndUpdate(

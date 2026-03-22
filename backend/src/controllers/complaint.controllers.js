@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import {ApiResponse} from "../utils/ApiResponse.js"
 import { Complaint } from "../models/complaint.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { sendPushNotification } from "../utils/sendNotification.js";
 
 const registerComplaint = asyncHandler(async(req,res,next)=>{
     //pehle check karna hai ki the req is made by a citizen
@@ -97,7 +98,20 @@ const assignComplaintToStaff = asyncHandler(async(req,res,next)=>{
     complaint.assignedTo=staffId;
     complaint.complaintStatus="Assigned";
 
+    await sendPushNotification(
+        staff.fcmToken,
+        "New Complaint Assigned",
+        `Complaint "${complaint.complaintTitle}" assigned to you`
+    );
+
     await complaint.save();
+
+    const io = getIO();
+    io.to(staffId.toString()).emit("complaint_assigned",{
+        complaintId:complaint._id,
+        message:"A new complaint has been assigned to you!!"
+    });
+
     return res
     .status(200)
     .json(
@@ -178,9 +192,22 @@ const updateComplaintStatus = asyncHandler(async(req,res,next)=>{
         complaint.acknowledgedAt = new Date();
     }
     if(status==="Resolved"){
+        await sendPushNotification(
+        citizen.fcmToken,
+        "Complaint Resolved",
+        `Your complaint "${complaint.complaintTitle}" has been resolved`
+        );
         complaint.resolvedAt = new Date();
     }
     await complaint.save();
+
+    if(status==="Resolved"){
+        const io = getIO();
+        io.to(complaint.submittedBy.toString()).emit("complaint_resolved",{
+            complaintId:complaint._id,
+            message:"Your complaint has been resolved!!"
+        });
+    }
 
     return res
     .status(200)
