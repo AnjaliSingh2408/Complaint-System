@@ -1,9 +1,11 @@
-import { asyncHandler } from "../utils/asyncHandler";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import {ApiResponse} from "../utils/ApiResponse.js"
 import { Complaint } from "../models/complaint.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { sendPushNotification } from "../utils/sendNotification.js";
+import { classifyComplaint } from "../services/ai.services.js";
+import { getIO } from "../utils/socket.js";
 
 const registerComplaint = asyncHandler(async(req,res,next)=>{
     //pehle check karna hai ki the req is made by a citizen
@@ -22,8 +24,18 @@ const registerComplaint = asyncHandler(async(req,res,next)=>{
         throw new ApiError(400,"All fields are required!!")//can also check separately for title, dec and location
     }
 
-    const { category, priority } =
-    await classifyComplaint(title, description)
+
+    const aiPromise = classifyComplaint(title, description);
+
+    const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() =>
+            resolve({ category: "General", priority: "Medium" }), 3000)
+    );
+
+    const { category, priority } = await Promise.race([
+        aiPromise,
+        timeoutPromise
+    ]);
      
     let imageUrls=[]
     if(req.files && req.files>0){
@@ -35,22 +47,33 @@ const registerComplaint = asyncHandler(async(req,res,next)=>{
         }
     }
 
+    const generatedOTP = Math.floor(1000 + Math.random() * 9000).toString();
+
     const complaintData={
         title,
         description,
         images:imageUrls,
         category,
         priority,
-        status:"pending",
+        status:"Pending",
         location:{
             address,
             type:"Point",
             coordinates:[Number(longitude), Number(latitude)]
         },
-        submittedBy:req.user._id
+        submittedBy:req.user._id,
+        resolutionOTP:generatedOTP
     };
     //save the complaint in the db
     const complaint = await Complaint.create(complaintData)
+
+    if (req.user.email) {
+        await sendEmail(
+            req.user.email,
+            "Your Complaint OTP",
+            `Your complaint "${complaint.title}" has been registered. When a staff member comes to resolve your issue, please provide them with this OTP: ${generatedOTP}. Do not share it until the issue is entirely fixed!`
+        );
+    }
 
     if(!complaint){
         throw new ApiError(500,"Failed to register complaint!!")
@@ -96,12 +119,12 @@ const assignComplaintToStaff = asyncHandler(async(req,res,next)=>{
     }
 
     complaint.assignedTo=staffId;
-    complaint.complaintStatus="Assigned";
+    complaint.status="Assigned";
 
     await sendPushNotification(
         staff.fcmToken,
         "New Complaint Assigned",
-        `Complaint "${complaint.complaintTitle}" assigned to you`
+        `Complaint "${complaint.title}" assigned to you`
     );
 
     await complaint.save();
@@ -153,9 +176,11 @@ const getComplaints=asyncHandler(async(req,res,next)=>{
     return res
     .status(200)
     .json(
-        200,
-        {complaints},
-        "Complaints fetched successfully!!"
+        new ApiResponse(
+            200,
+            {complaints},
+            "Complaints fetched successfully!!"
+        )
     )
 });
 
@@ -174,7 +199,7 @@ const updateComplaintStatus = asyncHandler(async(req,res,next)=>{
         throw new ApiError(404,"Complaint not found!!")
     }
 
-    if(req.user.role !== "Staff"){
+    if(req.user.role !== "staff"){
         throw new ApiError(403,"Unauthorized request!!")
     }
     if(complaint.assignedTo.toString() !== req.user._id.toString()){
@@ -192,12 +217,18 @@ const updateComplaintStatus = asyncHandler(async(req,res,next)=>{
         complaint.acknowledgedAt = new Date();
     }
     if(status==="Resolved"){
+
+        if(!citizenOTP){
+            throw new ApiError(400,"Correct citizen OTP is required!!")
+        }
+
         await sendPushNotification(
         citizen.fcmToken,
         "Complaint Resolved",
-        `Your complaint "${complaint.complaintTitle}" has been resolved`
+        `Your complaint "${complaint.title}" has been resolved`
         );
         complaint.resolvedAt = new Date();
+        complaint.resolutionOTP = null; 
     }
     await complaint.save();
 
@@ -247,7 +278,17 @@ const editComplaint = asyncHandler(async(req,res,next)=>{
 
     complaint.title = req.body.title || complaint.title;
     complaint.description = req.body.description || complaint.description;
-    complaint.address = req.body.address || complaint.address;
+    
+        if (req.body.address) {
+        // Correctly update the nested location properties
+        complaint.location.address = req.body.address;
+        
+        // If they provided a new address, they must also provide the new GPS coordinates
+        if (req.body.longitude && req.body.latitude) {
+            complaint.location.coordinates = [Number(req.body.longitude), Number(req.body.latitude)];
+        }
+    }
+
 
     if(req.body.removeImages){
         complaint.images = complaint.images.filter(

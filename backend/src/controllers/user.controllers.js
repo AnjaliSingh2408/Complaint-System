@@ -1,4 +1,4 @@
-import { asyncHandler } from "../utils/asyncHandler";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import {ApiResponse} from "../utils/ApiResponse.js"
 import { User } from "../models/user.models.js";
@@ -36,6 +36,16 @@ const editProfile = asyncHandler(async(req,res,next)=>{
         },
         {new:true}
     ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            {user},
+            "User profile edited successfuly!!"
+        )
+    )
 
 });
 
@@ -116,7 +126,7 @@ const logoutUser = asyncHandler(async(req,res,next)=>{
 
     return res
     .status(200)
-    .clearCookie("accessToke",options)
+    .clearCookie("accessToken",options)
     .clearCookie("refreshToken",options)
     .json(
         new ApiResponse(
@@ -131,6 +141,5 @@ const logoutUser = asyncHandler(async(req,res,next)=>{
 export {getUserProfile,
     editProfile,
     getMyStats,
-    needHelp,
     logoutUser
 }

@@ -1,3 +1,5 @@
+import { ApiError } from "../utils/ApiError.js";
+
 let io;
 
 export const setIO = (serverIO) =>{

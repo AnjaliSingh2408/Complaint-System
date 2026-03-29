@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import messageRouter from './routes/message.routes.js'
 
 const app=express()
 
@@ -16,13 +17,6 @@ app.use(express.static("public"))
 
 app.use(cookieParser())
 
-app.get('/', function (req, res) {
-  // Cookies that have not been signed
-  console.log('Cookies: ', req.cookies)
-
-  // Cookies that have been signed
-  console.log('Signed Cookies: ', req.signedCookies)
-})
-
+app.use('/api/v1/messages', messageRouter)
 
 export {app}

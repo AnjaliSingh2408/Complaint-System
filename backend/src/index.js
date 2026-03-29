@@ -1,11 +1,18 @@
 import 'dotenv/config'
-import {app} from './app.js'
-import { setIO } from './utils/socket.js';
+import { app } from './app.js'
+import { setIO } from './utils/socket.js'
+import http from 'http';
+import { Server } from 'socket.io';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import connectDB from './db/database.js';
+import { Message } from './models/message.models.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const http = require('http');
 const server = http.createServer(app);
-const { Server } = require("socket.io");
 const io = new Server(server);
+
 setIO(io);
 
 app.get('/', (req, res) => {
@@ -13,29 +20,46 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  console.log('User connected: ', socket.id);
+  console.log('User connected:', socket.id);
 
   socket.on("join", (userId) => {
     socket.join(userId);
-    console.log("User with ID: ", userId, "joined room: ", userId);
+    console.log("User joined:", userId);
+  });
+
+  socket.on("join_complaint_room", ({ complaintId, userId }) => {
+    socket.join(complaintId);
+    console.log(`User ${userId} joined room for complaint: ${complaintId}`);
+  });
+
+  socket.on("send_message", async ({ complaintId, senderId, text }) => {
+    try {
+      const newMessage = await Message.create({
+          complaintId,
+          senderId,
+          text
+      });
+
+      io.to(complaintId).emit("receive_message", newMessage);
+    } catch (error) {
+      console.error("Error saving message:", error);
+    }
   });
 
   socket.on("disconnect", () => {
-    console.log("User disconnected: ", socket.id);
+    console.log("User disconnected:", socket.id);
   });
 });
 
-dotenv.config({
-    path:'./.env'
-});
-
 connectDB()
-.then(()=>{
-    port=process.env.port||3000
-    app.listen(port, ()=>{
-        console.log(`Server is Listening on port ${port}`)
-    })
-})
-.catch((err)=>{
-    console.log(`DB Connection Failed: ${err.message}`)
-})
+  .then(() => {
+    const port = process.env.PORT || 3000;
+
+    server.listen(port, () => {
+      console.log(`Server is listening on port ${port}`);
+    });
+
+  })
+  .catch((err) => {
+    console.log(`DB Connection Failed: ${err.message}`);
+  });

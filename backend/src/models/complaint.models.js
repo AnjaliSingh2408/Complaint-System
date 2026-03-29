@@ -2,18 +2,18 @@ import mongoose, {Schema} from 'mongoose';
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 const complaintSchema = new Schema({
-    complaintTitle:{
+    title:{
         type:String,
         required:true
     },
-    complaintDescription:{
+    description:{
         type:String,
         required:true
     },
-    complaintImage:{
+    images:{
         type:[String]
     },
-    complaintStatus:{
+    status:{
         type:String,
         enum:["Pending","Assigned","In Progress","Resolved"],
         default:"Pending"
@@ -51,6 +51,15 @@ const complaintSchema = new Schema({
       enum: ["Low", "Medium", "High"],
       default: "Low"
     },
+    resolutionOTP: {
+        type: String,
+    },
+    acknowledgedAt: {
+        type: Date
+    },
+    resolvedAt: {
+        type: Date
+    }
 
 });
 

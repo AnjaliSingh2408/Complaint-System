@@ -25,6 +25,14 @@ const userSchema= new Schema({
         type:String,
         required:[true,"Password is required!!"]
     },
+    phoneNo:{
+        type:Number,
+        required:true
+    },
+    resolutionOTP:{
+        type:String,
+        required:true
+    },
     role: {
         type: String,
         enum: ["citizen", "staff", "admin"],

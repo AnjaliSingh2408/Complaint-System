@@ -5,7 +5,7 @@ import { getUserProfile,
     editProfile,
     logoutUser,
     getMyStats
- } from "../controllers/user.controllers";
+ } from "../controllers/user.controllers.js";
 
 const router = Router()
 
@@ -15,3 +15,5 @@ router.get("/profile",getUserProfile)
 router.patch("/edit-profile", editProfile)
 router.post("/logout", logoutUser)
 router.get("/stats", getMyStats)
+
+export default router;

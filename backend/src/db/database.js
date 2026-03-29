@@ -2,6 +2,9 @@ import mongoose from 'mongoose'
 import { DB_NAME } from '../constants.js';
 import { DB_STRING } from '../constants.js';
 
+console.log("DB_STRING:", DB_STRING);
+console.log("DB_NAME:", DB_NAME);
+
 const connectDB = async() =>{
     try {
         const connectionInstance = await mongoose.connect(`${DB_STRING}/${DB_NAME}`)
