@@ -1,72 +1,278 @@
-import axios from "axios"
-import { ApiError } from "../utils/ApiError.js";
+import dotenv from "dotenv";
+dotenv.config();
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { HfInference } from "@huggingface/inference";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const hf = new HfInference(
+  process.env.HF_API_KEY
+);
 
-export const classifyComplaint = async (title, description) => {
-  try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash"
-    });
+// Stable free model
+const HF_MODEL =
+  "meta-llama/Llama-3.1-8B-Instruct";
 
-    const prompt = `
-You are an AI system for a complaint management platform.
+export const classifyComplaint =
+  async (title, description) => {
+    try {
+      const prompt = `
+You are an AI complaint classification system.
 
-Classify the complaint into:
-Category: (Water, Electricity, Road, Garbage, Other)
-Priority: (Low, Medium, High)
+Classify the complaint.
 
-Return ONLY JSON like:
+Allowed Categories:
+- Infrastructure
+- Sanitation
+- Water
+- Electricity
+- Other
+
+Allowed Priorities:
+- Low
+- Medium
+- High
+
+IMPORTANT:
+Return ONLY valid JSON.
+No explanation.
+No markdown.
+
+Complaint Title:
+${title}
+
+Complaint Description:
+${description}
+
+Example Output:
 {
   "category": "Water",
   "priority": "High"
 }
-
-Complaint:
-Title: ${title}
-Description: ${description}
+Example Output:
+{
+  "category": "Water",
+  "priority": "Medium"
+}
+Example Output:
+{
+  "category": "Water",
+  "priority": "Low"
+}
 `;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+      const response =
+        await hf.chatCompletion({
+          model: HF_MODEL,
+          messages: [
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          max_tokens: 100
+        });
 
-    // extract JSON safely
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+      const text =
+        response.choices?.[0]
+          ?.message?.content || "";
 
-    return {
-      category: parsed?.category || "General",
-      priority: parsed?.priority || "Medium"
-    };
+      console.log(
+        "HF Classification Response:",
+        text
+      );
 
-  } catch (error) {
-    console.error("Gemini Error:", error.message);
+      let parsed = null;
 
-    return {
-      category: "General",
-      priority: "Medium"
-    };
-  }
+      try {
+        const jsonMatch =
+          text.match(/\{[\s\S]*\}/);
+
+        parsed = jsonMatch
+          ? JSON.parse(
+              jsonMatch[0]
+            )
+          : null;
+      } catch (parseError) {
+        console.error(
+          "JSON Parse Error:",
+          parseError.message
+        );
+      }
+
+      const categoryMap = {
+        Garbage: "Sanitation",
+        Road: "Infrastructure",
+        General: "Other"
+      };
+
+      const allowedCategories =
+        [
+          "Infrastructure",
+          "Sanitation",
+          "Water",
+          "Electricity",
+          "Other"
+        ];
+
+      const category =
+        categoryMap[
+          parsed?.category
+        ] || parsed?.category;
+
+      return {
+        category:
+          allowedCategories.includes(
+            category
+          )
+            ? category
+            : "Other",
+
+        priority:
+          parsed?.priority ||
+          "Medium"
+      };
+
+    } catch (error) {
+      console.error(
+        "HF Classification Error:"
+      );
+
+      console.dir(error, {
+        depth: null,
+        colors: true
+      });
+
+      return {
+        category: "Other",
+        priority: "Medium"
+      };
+    }
 };
 
-// export const classifyComplaint = async (title, description) => {
+export const generateReportAI =
+  async (complaint, messages) => {
+    try {
+      let chatTranscript =
+        "No chat log available.";
 
-//   try{
-//       const response = await axios.post(
-//       process.env.AI_SERVICE_URL,
-//       { title, description },
-//       { timeout: 10000 }
-//     )
+      if (
+        messages &&
+        messages.length > 0
+      ) {
+        // limit size to avoid timeout
+        chatTranscript =
+          messages
+            .slice(-10)
+            .map((m) => {
+              const senderName =
+                m.senderId
+                  ?.fullName ||
+                "Unknown";
 
-//     const data = response.data;
-//     if(!data || !data.category || !data.priority){
-//       throw new ApiError(500,"Failed to classify complaint using AI!!")
-//     }
-//   } catch(error){
-//     throw new ApiError(500,"Failed to classify complaint using AI!!")
-//   }
+              const senderRole =
+                m.senderId
+                  ?.role || "user";
 
-//   return response.data
-// }
+              return `[${senderName} (${senderRole})]:
+${m.text}`;
+            })
+            .join("\n");
+      }
+
+      const prompt = `
+You are an AI assistant for a municipal complaint system.
+
+Generate a professional resolution report.
+
+Complaint Details:
+Title: ${complaint.title}
+Description:
+${complaint.description}
+
+Category:
+${complaint.category}
+
+Priority:
+${complaint.priority}
+
+Citizen:
+${complaint
+  .submittedBy?.fullName || "N/A"}
+
+Assigned Staff:
+${complaint
+  .assignedTo?.fullName || "N/A"}
+
+Status:
+${complaint.status}
+
+Recent Chat Transcript:
+${chatTranscript}
+
+Generate ONLY these sections:
+
+1. Issue Summary
+2. Actions Taken
+3. Resolution Summary
+4. Suggested Future Prevention
+
+Keep the report concise and professional.
+`;
+
+      console.log(
+        "REPORT PROMPT LENGTH:",
+        prompt.length
+      );
+
+      const response =
+        await hf.chatCompletion({
+          model: HF_MODEL,
+          messages: [
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          max_tokens: 300
+        });
+
+      const report =
+        response.choices?.[0]
+          ?.message?.content;
+
+      return (
+        report ||
+        "Report generation failed."
+      );
+
+    } catch (error) {
+      console.error(
+        "HF Report Error:"
+      );
+
+      console.dir(error, {
+        depth: null,
+        colors: true
+      });
+
+      return `AI Report Generation Failed.
+
+1. Issue Summary
+The complaint titled "${complaint.title}" was filed.
+
+Description:
+${complaint.description}
+
+2. Actions Taken
+No transcript analysis
+could be completed.
+
+3. Resolution Summary
+Complaint status:
+${complaint.status}
+
+4. Suggested Future Prevention
+Routine inspection and
+preventive maintenance
+are recommended.`;
+    }
+};
