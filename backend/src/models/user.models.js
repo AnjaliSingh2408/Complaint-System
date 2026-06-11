@@ -30,8 +30,7 @@ const userSchema= new Schema({
         required:true
     },
     resolutionOTP:{
-        type:String,
-        required:true
+        type:String
     },
     role: {
         type: String,
@@ -49,15 +48,18 @@ const userSchema= new Schema({
     refreshToken:{
         type:String
     },
+    fcmToken: {
+        type: String,
+        default: null
+    },
 }, {timestamps:true});
 
 //info save karne ke pehle password hash karna hai, only if passwrod is modified
-userSchema.pre('save', async function(next){
-    if(!this.isModified('password')) return next();
+userSchema.pre('save', async function(){
+    if(!this.isModified('password')) return;
 
     //hashing the password
     this.password = await bcrypt.hash(this.password,10);
-    next();
 })
 
 //we will also create methods to check whether th epasword is corect, to generate accessToken and refreshToken

@@ -61,7 +61,7 @@ const complaintSchema = new Schema({
         type: Date
     }
 
-});
+},  { timestamps: true });
 
 complaintSchema.index({location:"2dsphere"})
 
