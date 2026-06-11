@@ -18,3 +18,5 @@ build/
 
 # VS Code
 .vscode/
+err.txt
+src/config/serviceAccountKey.json
