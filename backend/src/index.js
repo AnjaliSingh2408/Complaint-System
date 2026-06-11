@@ -11,7 +11,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const server = http.createServer(app);
-const io = new Server(server);
+
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CORS_ORIGIN,
+    credentials: true
+  }
+});
 
 setIO(io);
 
@@ -53,7 +59,7 @@ io.on('connection', (socket) => {
 
 connectDB()
   .then(() => {
-    const port = process.env.PORT || 3000;
+    const port = process.env.PORT || 5000;
 
     server.listen(port, () => {
       console.log(`Server is listening on port ${port}`);
