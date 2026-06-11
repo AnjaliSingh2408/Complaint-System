@@ -2,31 +2,32 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import {ApiResponse} from "../utils/ApiResponse.js"
 import { User } from "../models/user.models.js";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 
 const generateAccessAndRefereshTokens = async(userId) =>{
     try {
         const user = await User.findById(userId)
-        const accessToken = user.generateAccessToken()
-        const refreshToken = user.generateRefreshToken()
+        const accessToken = await user.generateAccessToken()
+        const refreshToken = await user.generateRefreshToken()
 
         user.refreshToken = refreshToken
         await user.save({ validateBeforeSave: false })
 
+        console.log(accessToken);
+        console.log(refreshToken);
+
         return {accessToken, refreshToken}
 
 
-    } catch (error) {
+    } catch {
         throw new ApiError(500, "Something went wrong while generating referesh and access token")
     }
 }
 
 const registerCitizen = asyncHandler(async(req,res,next)=>{
-    const {fullName,username, email, password} = req.body;
+    const {fullName,username, email, password, phoneNo} = req.body;
 
-    if([fullName,username,email,password].some((field)=> field?.trim()==="")){
+    if([fullName,username,email,password,phoneNo].some((field)=> String(field)?.trim()==="")){
         throw new ApiError(400,"All fields are required!!")
     }
     const existedUser= await User.findOne({$or:[{email},{username}]})
@@ -37,6 +38,7 @@ const registerCitizen = asyncHandler(async(req,res,next)=>{
         fullName,
         email,
         password,
+        phoneNo,
         username: username.toLowerCase()
     })
 
@@ -52,9 +54,9 @@ const registerCitizen = asyncHandler(async(req,res,next)=>{
 
 //login user same for all roles
 const loginUser = asyncHandler(async(req,res,next)=>{
-    const {email,username, password } = req.body;
-    if(!username || !email){
-        throw new ApiError(400,"Username and email are required!!")
+    const {email, username, password} = req.body;
+    if(!username && !email){
+        throw new ApiError(400,"Username or email is required!!")
     }
     const user = await User.findOne({
         $or: [{username},{email}]
@@ -72,12 +74,13 @@ const loginUser = asyncHandler(async(req,res,next)=>{
     
     const options ={
         httpOnly:true,
-        secure:true
+        secure:false,
+        sameSite: "lax"
     }
 
     return res.status(200)
-    .cookies("accessToken", accessToken, options)
-    .cookies("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .json(
         new ApiResponse(
             200,
@@ -115,10 +118,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     
         const options = {
             httpOnly: true,
-            secure: true
+            secure: false,
+            sameSite: "lax"
         }
     
-        const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
+        const {accessToken, refreshToken: newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
     
         return res
         .status(200)
@@ -151,7 +155,8 @@ const logoutUser = asyncHandler(async(req,res) =>{
     )
     const options ={
         httpOnly:true,
-        secure:true
+        secure:false,
+        sameSite: "lax"
     }
     return res
     .status(200)
