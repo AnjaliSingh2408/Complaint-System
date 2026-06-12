@@ -20,7 +20,7 @@ import {
 } from "react-icons/fa";
 
 const socket =
-  io("http://localhost:5000", {
+  io(import.meta.env.VITE_SOCKET_URL || "https://complaint-system-g0tt.onrender.com", {
     withCredentials: true,
   });
 
