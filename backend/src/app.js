@@ -9,7 +9,7 @@ import complaintRouter from './routes/complaint.routes.js'
 const app=express()
 
 app.use(cors({
-    origin: "*",
+    origin: process.env.CORS_ORIGIN || "https://complaint-system-beige.vercel.app",
     credentials:true
 }))
 
